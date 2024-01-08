@@ -1,6 +1,6 @@
 import spacy
 from spacy.tokens import Doc
-from spacy import prefer_gpu
+from spacy import prefer_gpu  # type: ignore
 
 prefer_gpu(0)
 

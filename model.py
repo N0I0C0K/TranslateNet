@@ -28,7 +28,7 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class PoetryNet(nn.Module):
+class TranslationNet(nn.Module):
     def __init__(
         self,
         vocab_size: int,
