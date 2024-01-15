@@ -1,3 +1,7 @@
 *.txt
 __*__
 *.pth
+data/*
+
+#
+!data/token_dict.txt

@@ -10,7 +10,7 @@ from rich.progress import Progress
 from model import TranslationNet
 from dataset import TranslationData
 
-batch_size = 48
+batch_size = 12
 lr = 0.0002
 
 
@@ -18,11 +18,11 @@ class Translator:
     def __init__(self) -> None:
         self.device = torch.device("cuda:0")
 
-        self.dataset = TranslationData(self.device)
+        self.dataset = TranslationData(self.device, seq_len=64, max_lines=100000)
 
         train_data, vaild_data = random_split(
             self.dataset,
-            [len(self.dataset) - 400, 400],
+            [len(self.dataset) - 1000, 1000],
             generator=torch.manual_seed(417),
         )
         self.train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
@@ -163,7 +163,9 @@ class Translator:
             self.evaluation()
             self.epoch += 1
             self.save_checkpoint()
-            print(self.translate_token([222, 371, 3243, 2902, 236]))  # 我在这里等你
+            print(
+                self.translate_token([37229, 37127, 39066, 37583, 37513])
+            )  # 我/在/这里/等/你
 
     def translate_token(self, src_token: list[int]) -> str:
         self.net.eval()
