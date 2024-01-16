@@ -9,18 +9,18 @@ def dict_gen():
         open("./data/token_dict.txt", "w") as token_file,
     ):
         word_dict: defaultdict[str, int] = defaultdict(int)
-        max_len = 0
+        len_dict: defaultdict[int, int] = defaultdict(int)
         for en_line in en_file:
             en_word = en_line.strip().split("/")
             for k in en_word:
                 word_dict[k] += 1
-            max_len = max(max_len, len(en_word))
+            len_dict[len(en_word)] += 1
 
         for cn_line in cn_file:
             cn_word = cn_line.strip().split("/")
             for k in cn_word:
                 word_dict[k] += 1
-            max_len = max(max_len, len(cn_word))
+            len_dict[len(cn_word)] += 1
 
         a = 0
         for k in word_dict:
@@ -28,7 +28,17 @@ def dict_gen():
                 token_file.write(k + "\n")
                 a += 1
 
-        print(f"total token size:{a}\ntoken len:{max_len}")
+        print(f"total token size:{a}")
+        lenl = [0 for _ in range(200)]
+        for k in len_dict:
+            lenl[k] = len_dict[k]
+
+        all_token = sum(lenl)
+        for i in range(1, 200):
+            lenl[i] += lenl[i - 1]
+
+        for i in range(200):
+            print(f"<={i} num:{lenl[i]} {lenl[i]/all_token:.4f}")
 
 
 def token_gen():
@@ -73,4 +83,4 @@ def token_gen():
 
 
 dict_gen()
-token_gen()
+# token_gen()

@@ -86,7 +86,46 @@ class TranslationData(Dataset[tuple[Tensor, Tensor]]):
 
     def __getitem__(self, index) -> tuple[Tensor, Tensor]:
         en, cn = self.data[index]
+        if len(en) > self.seq_len - 2 or len(cn) > self.seq_len - 2:
+            en, cn = [], []
         return (self.padding_token(cn), self.padding_token(en))
         # if index % 2 == 0:
         #     return (self.padding_token(en), self.padding_token(cn))
         # else:
+
+
+test_words = [
+    [
+        37119,
+        110,
+        37120,
+        37121,
+        36748,
+        37122,
+        37123,
+        37124,
+        37125,
+        37126,
+        37127,
+        37128,
+        37129,
+        37130,
+        37131,
+        37132,
+        37133,
+        37134,
+        37135,
+        37136,
+        37137,
+        37138,
+        37139,
+        37140,
+        37141,
+        37142,
+        37143,
+        37134,
+        37144,
+        37145,
+    ],  # 巴黎-随着经济危机不断加深和蔓延，整个世界一直在寻找历史上的类似事件希望有助于我们了解目前正在发生的情况。
+    [37232, 37130, 39069, 37586, 37516],  # 我在这里等你
+]

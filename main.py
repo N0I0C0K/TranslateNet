@@ -8,17 +8,17 @@ import os
 from rich.progress import Progress
 
 from model import TranslationNet
-from dataset import TranslationData
+from dataset import TranslationData, test_words
 
 batch_size = 12
-lr = 0.0002
+lr = 0.00011
 
 
 class Translator:
     def __init__(self) -> None:
         self.device = torch.device("cuda:0")
 
-        self.dataset = TranslationData(self.device, seq_len=64, max_lines=100000)
+        self.dataset = TranslationData(self.device, seq_len=64, max_lines=50000)
 
         train_data, vaild_data = random_split(
             self.dataset,
@@ -28,7 +28,12 @@ class Translator:
         self.train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
         self.vail_loader = DataLoader(vaild_data, shuffle=True, batch_size=batch_size)
 
-        self.net = TranslationNet(self.dataset.vocab_size, self.device).to(self.device)
+        t_data = next(iter(self.vail_loader))
+        print(self.dataset.token2word(t_data[0][0]))
+
+        self.net = TranslationNet(self.dataset.vocab_size, self.device, n_layer=3).to(
+            self.device
+        )
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr)
         self.optimizer_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             self.optimizer, 256
@@ -55,11 +60,11 @@ class Translator:
             if t != "n":
                 self.load_checkpoint(files[int(t)])
 
+    def gen_checkpoint_name(self) -> str:
+        return f"checkpoint-{time.strftime('%m-%d-%H%M')}-{self.epoch}-{self.last_loss:.3f}.pth"
+
     def save_checkpoint(self):
-        file_name = (
-            self.loaded_checkpoint_file
-            or f"checkpoint-{self.epoch}-{self.last_loss:.3f}.pth"
-        )
+        file_name = self.loaded_checkpoint_file or self.gen_checkpoint_name()
         with open(file_name, "wb") as file:
             torch.save(
                 {
@@ -69,7 +74,7 @@ class Translator:
                 },
                 file,
             )
-        tgt_file = f"checkpoint-{self.epoch}-{self.last_loss:.3f}.pth"
+        tgt_file = self.gen_checkpoint_name()
         os.rename(file_name, tgt_file)
         print(f"save check point to {tgt_file}")
         self.loaded_checkpoint_file = tgt_file
@@ -153,6 +158,14 @@ class Translator:
             description=f"epoch={self.epoch} lr={self.optimizer_scheduler.get_lr()}",
             total=train_epoch_nums,
         )
+
+        print("Begin of the training:")
+        for words in test_words:
+            print(" ")
+            print(f"src: {self.dataset.token2word(words)}")
+            print(f"tgt: {self.translate_token(words)}")
+        print("")
+
         for i in range(train_epoch_nums):
             self.progress.update(
                 training_all,
@@ -163,9 +176,10 @@ class Translator:
             self.evaluation()
             self.epoch += 1
             self.save_checkpoint()
-            print(
-                self.translate_token([37229, 37127, 39066, 37583, 37513])
-            )  # 我/在/这里/等/你
+            for words in test_words:
+                print(" ")
+                print(f"src: {self.dataset.token2word(words)}")
+                print(f"tgt: {self.translate_token(words)}")
 
     def translate_token(self, src_token: list[int]) -> str:
         self.net.eval()
@@ -191,9 +205,9 @@ class Translator:
 
 def main():
     trainer = Translator()
-    # trainer.training()
-    while (s := input(">")) != "exit":
-        print(trainer.translate(s))
+    trainer.training(256)
+    # while (s := input(">")) != "exit":
+    #     print(trainer.translate(s))
 
 
 if __name__ == "__main__":
