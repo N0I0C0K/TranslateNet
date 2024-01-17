@@ -28,10 +28,22 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class TokenEmbedding(nn.Module):
+    def __init__(self, vocab_size: int, emb_size: int):
+        super(TokenEmbedding, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, emb_size)
+        self.emb_size = emb_size
+        self.eq = math.sqrt(self.emb_size)
+
+    def forward(self, tokens: Tensor):
+        return self.embedding(tokens.long()) * self.eq
+
+
 class TranslationNet(nn.Module):
     def __init__(
         self,
-        vocab_size: int,
+        src_vocab_size: int,
+        tgt_vocab_size: int,
         device: device,
         *,
         embed_size: int = 512,
@@ -40,9 +52,9 @@ class TranslationNet(nn.Module):
         hidden_size=512
     ) -> None:
         super().__init__()
-        self.embed = nn.Embedding(vocab_size, embed_size, device=device)
-        self.embed_size = embed_size
-        self.sq = math.sqrt(self.embed_size)
+        self.src_token_embed = TokenEmbedding(src_vocab_size, embed_size).to(device)
+        self.tgt_token_embed = TokenEmbedding(tgt_vocab_size, embed_size).to(device)
+
         self.transformer = nn.Transformer(
             embed_size,
             nhead=n_head,
@@ -52,8 +64,8 @@ class TranslationNet(nn.Module):
             dim_feedforward=hidden_size,
             device=device,
         )
-        self.liner = nn.Linear(embed_size, vocab_size)
-        self.positional_encoding = PositionalEncoding(embed_size)
+        self.liner = nn.Linear(embed_size, tgt_vocab_size)
+        self.positional_encoding = PositionalEncoding(embed_size).to(device)
 
     def forward(
         self,
@@ -63,11 +75,9 @@ class TranslationNet(nn.Module):
         src_padding_mask: Tensor,
         tgt_padding_mask: Tensor,
     ):
-        src = self.embed(src) * self.sq
-        src = self.positional_encoding(src)
+        src = self.positional_encoding(self.src_token_embed(src))
 
-        tgt = self.embed(tgt) * self.sq
-        tgt = self.positional_encoding(tgt)
+        tgt = self.positional_encoding(self.tgt_token_embed(tgt))
 
         out = self.transformer.forward(
             src,
@@ -81,19 +91,20 @@ class TranslationNet(nn.Module):
         return out
 
     def encode(
-        self, src: Tensor, noise: bool = True, noise_intensity: float = 1
+        self, src: Tensor, *, noise: bool = True, noise_intensity: float = 0.3
     ) -> Tensor:
-        embeded = self.embed.forward(src)
+        embeded = self.src_token_embed.forward(src)
         if noise:
             embeded += torch.rand_like(embeded) * noise_intensity
         return self.transformer.encoder.forward(
-            self.positional_encoding.forward(embeded * self.sq)
+            self.positional_encoding.forward(embeded),
         )
 
-    def decode(self, tgt: Tensor, memory: Tensor) -> Tensor:
+    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor) -> Tensor:
         return self.liner.forward(
             self.transformer.decoder.forward(
-                self.positional_encoding.forward(self.embed(tgt) * self.sq),
+                self.positional_encoding.forward(self.tgt_token_embed(tgt)),
                 memory,
+                tgt_mask,
             )
         )

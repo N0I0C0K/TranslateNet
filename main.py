@@ -12,28 +12,37 @@ from dataset import TranslationData, test_words
 
 batch_size = 12
 lr = 0.00011
+seed = torch.manual_seed(417)
 
 
 class Translator:
     def __init__(self) -> None:
         self.device = torch.device("cuda:0")
 
-        self.dataset = TranslationData(self.device, seq_len=64, max_lines=50000)
+        self.dataset = TranslationData(self.device, seq_len=64, max_lines=100000)
 
         train_data, vaild_data = random_split(
             self.dataset,
             [len(self.dataset) - 1000, 1000],
-            generator=torch.manual_seed(417),
+            generator=seed,
         )
+        # self.data_split_len = 5
+        # self.train_data_list = random_split(
+        #     train_data,
+        #     [1 / self.data_split_len for _ in range(self.data_split_len)],
+        #     generator=seed,
+        # )
         self.train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
         self.vail_loader = DataLoader(vaild_data, shuffle=True, batch_size=batch_size)
 
         t_data = next(iter(self.vail_loader))
-        print(self.dataset.token2word(t_data[0][0]))
+        # print(self.dataset.token2word(t_data[0][0], "zh"))
 
-        self.net = TranslationNet(self.dataset.vocab_size, self.device, n_layer=3).to(
-            self.device
-        )
+        self.net = TranslationNet(
+            len(self.dataset.cn_word2idx),
+            len(self.dataset.en_word2idx),
+            self.device,
+        ).to(self.device)
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr)
         self.optimizer_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             self.optimizer, 256
@@ -111,7 +120,7 @@ class Translator:
         # ignore <pad> which index is 2
         loss_f = self.loss_f  # torch.nn.CrossEntropyLoss(ignore_index=2)
 
-        voacb_size = self.dataset.vocab_size
+        voacb_size = len(self.dataset.en_word2idx)
         len_data = len(self.train_loader)
         loss_all = 0
         for i, (src, tgt) in enumerate(self.train_loader):
@@ -139,7 +148,7 @@ class Translator:
         self.net.eval()
 
         loss_f = self.loss_f
-        voacb_size = self.dataset.vocab_size
+        voacb_size = len(self.dataset.en_word2idx)
 
         loss_a = 0
         with torch.no_grad():
@@ -159,13 +168,6 @@ class Translator:
             total=train_epoch_nums,
         )
 
-        print("Begin of the training:")
-        for words in test_words:
-            print(" ")
-            print(f"src: {self.dataset.token2word(words)}")
-            print(f"tgt: {self.translate_token(words)}")
-        print("")
-
         for i in range(train_epoch_nums):
             self.progress.update(
                 training_all,
@@ -178,7 +180,7 @@ class Translator:
             self.save_checkpoint()
             for words in test_words:
                 print(" ")
-                print(f"src: {self.dataset.token2word(words)}")
+                print(f"src: {self.dataset.token2word(words, 'zh')}")
                 print(f"tgt: {self.translate_token(words)}")
 
     def translate_token(self, src_token: list[int]) -> str:
@@ -189,7 +191,10 @@ class Translator:
         memo = self.net.encode(src)
         res = []
         for i in range(48):
-            out = self.net.decode(tgt, memo)
+            tgt_mask = torch.nn.Transformer.generate_square_subsequent_mask(
+                tgt.size(1), self.device
+            )
+            out = self.net.decode(tgt, memo, tgt_mask)
             next_word = out.argmax(2)
             if next_word[0][-1] == 1:
                 break
@@ -197,7 +202,7 @@ class Translator:
             res.append(next_word[0][-1].item())
             tgt = torch.cat((tgt, next_word[:, -1:]), 1)
 
-        return self.dataset.token2word(res)
+        return self.dataset.token2word(res, "en")
 
     def translate(self, src_word: str) -> str:
         return self.translate_token(self.dataset.word2rawtoken(src_word))
