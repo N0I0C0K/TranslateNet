@@ -19,33 +19,41 @@ class Translator:
     def __init__(self) -> None:
         self.device = torch.device("cuda:0")
 
-        self.dataset = TranslationData(self.device, seq_len=64, max_lines=100000)
+        self.dataset = TranslationData(
+            self.device,
+            seq_len=64,
+            max_lines=-1,
+            token_file=f"./mid_data/tokens.txt",
+            cn_dic_path="./mid_data/cn_token_dict.txt",
+            en_dic_path="./mid_data/en_token_dict.txt",
+        )
 
         train_data, vaild_data = random_split(
             self.dataset,
-            [len(self.dataset) - 1000, 1000],
+            [len(self.dataset) - 2000, 2000],
             generator=seed,
         )
-        # self.data_split_len = 5
-        # self.train_data_list = random_split(
-        #     train_data,
-        #     [1 / self.data_split_len for _ in range(self.data_split_len)],
-        #     generator=seed,
-        # )
-        self.train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
+        self.data_split_len = 5
+        self.train_data_list = random_split(
+            train_data,
+            [1 / self.data_split_len for _ in range(self.data_split_len)],
+            generator=seed,
+        )
+        # self.train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
         self.vail_loader = DataLoader(vaild_data, shuffle=True, batch_size=batch_size)
 
-        t_data = next(iter(self.vail_loader))
+        # t_data = next(iter(self.vail_loader))
         # print(self.dataset.token2word(t_data[0][0], "zh"))
 
         self.net = TranslationNet(
             len(self.dataset.cn_word2idx),
             len(self.dataset.en_word2idx),
             self.device,
+            hidden_size=1024,
         ).to(self.device)
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr)
         self.optimizer_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, 256
+            self.optimizer, 128
         )
 
         self.loss_f = torch.nn.CrossEntropyLoss(ignore_index=2)
@@ -70,7 +78,7 @@ class Translator:
                 self.load_checkpoint(files[int(t)])
 
     def gen_checkpoint_name(self) -> str:
-        return f"checkpoint-{time.strftime('%m-%d-%H%M')}-{self.epoch}-{self.last_loss:.3f}.pth"
+        return f"checkpoint-mid-{time.strftime('%m-%d-%H%M')}-{self.epoch}-{self.last_loss:.3f}.pth"
 
     def save_checkpoint(self):
         file_name = self.loaded_checkpoint_file or self.gen_checkpoint_name()
@@ -113,17 +121,21 @@ class Translator:
 
     def train_epoch(self):
         self.net.train()
-
+        train_loader = DataLoader(
+            self.train_data_list[self.epoch % self.data_split_len],
+            shuffle=True,
+            batch_size=batch_size,
+        )
         train_progress = self.progress.add_task(
-            description="Train Epoch", total=len(self.train_loader)
+            description="Train Epoch", total=len(train_loader)
         )
         # ignore <pad> which index is 2
         loss_f = self.loss_f  # torch.nn.CrossEntropyLoss(ignore_index=2)
 
         voacb_size = len(self.dataset.en_word2idx)
-        len_data = len(self.train_loader)
+        len_data = len(train_loader)
         loss_all = 0
-        for i, (src, tgt) in enumerate(self.train_loader):
+        for i, (src, tgt) in enumerate(train_loader):
             out = self.forward_net(src, tgt)
             loss = loss_f.forward(out.reshape(-1, voacb_size), tgt[:, 1:].flatten())
 
@@ -210,9 +222,9 @@ class Translator:
 
 def main():
     trainer = Translator()
-    trainer.training(256)
-    # while (s := input(">")) != "exit":
-    #     print(trainer.translate(s))
+    # trainer.training(128)
+    while (s := input(">")) != "exit":
+        print(trainer.translate(s))
 
 
 if __name__ == "__main__":

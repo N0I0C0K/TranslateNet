@@ -95,7 +95,7 @@ class TranslationData(Dataset[tuple[Tensor, Tensor]]):
         return self.padding_token(self.word2rawtoken(words))
 
     def word2rawtoken(self, words: str) -> list[int]:
-        return list(self.cn_word2idx[x.text] for x in self.cn_tokenizer(words))
+        return list(self.cn_word2idx.get(x.text, 3) for x in self.cn_tokenizer(words))
 
     def token2word(self, token: Iterable[int], lan: Literal["zh", "en"]) -> str:
         return (
@@ -126,44 +126,42 @@ class TranslationData(Dataset[tuple[Tensor, Tensor]]):
 
 test_words = [
     [
-        2260,
-        17,
-        352,
-        926,
-        911,
-        757,
-        1958,
-        133,
+        89,
         21,
-        757,
-        189,
-        424,
-        587,
-        6733,
-        6734,
+        94,
+        95,
         15,
-        20522,
-        104,
-        424,
-        4585,
-        1598,
-        280,
-        4645,
-        17,
-        187,
-        252,
-        1121,
-        188,
-        1708,
-        10204,
-        17,
-        2029,
-        15,
-        76,
-        515,
+        96,
+        97,
         25,
-        278,
+        98,
+        3,
+        99,
+        100,
+        17,
+        82,
+        93,
+        101,
+        21,
+        68,
+        102,
+        103,
+        104,
+        17,
+        105,
+        106,
+        53,
+        107,
+        108,
+        25,
+        109,
+        110,
+        111,
+        112,
+        25,
+        113,
+        114,
         36,
-    ],  # 一方面 ， 有 理由 担心 某些 互联网 公司 在 某些 市场 —— 特别是 在线 内容 和 分发 方面 —— 攫取 过 大 权力 ， 以及 新 技术 对 个人 隐私 ， 执法 和 国家 安全 的 影响 。
-    [126, 21, 2075, 499, 419],  # 我在这里等你
+    ],  # 欧洲 在 避免 债务 和 捍卫 欧元 的 名义 <unk> 变得 谨慎 ， 而 美国 已经 在 许多 方面 行动 起来 ， 以 利用 这 一 理想 的 时机 来 实行 急需 的 结构性 改革 。
+    [123, 21, 2036, 491, 413],  # 我在这里等你
 ]

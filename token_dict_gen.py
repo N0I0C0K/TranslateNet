@@ -1,13 +1,15 @@
 from collections import defaultdict
 from typing import Iterable
 
+target_path = "mid_data"
+
 
 def dict_gen():
     with (
         open("./data/news-commentary-v13.zh-en.en.split", "r") as en_file,
         open("./data/news-commentary-v13.zh-en.zh.split", "r") as cn_file,
-        open("./data/en_token_dict.txt", "w") as en_token_file,
-        open("./data/cn_token_dict.txt", "w") as cn_token_file,
+        open(f"./{target_path}/en_token_dict.txt", "w") as en_token_file,
+        open(f"./{target_path}/cn_token_dict.txt", "w") as cn_token_file,
     ):
         en_dict: defaultdict[str, int] = defaultdict(int)
         cn_dict: defaultdict[str, int] = defaultdict(int)
@@ -24,18 +26,25 @@ def dict_gen():
                 cn_dict[k] += 1
             len_dict[len(cn_word)] += 1
 
-        a = 0
+        en_total, en_miss = 0, 0
+        cn_total, cn_miss = 0, 0
         for k in en_dict:
-            if len(k) > 0 and en_dict[k] >= 1:
+            if len(k) > 0 and en_dict[k] >= 2:
                 en_token_file.write(k + "\n")
-                a += 1
+                en_total += 1
+            else:
+                en_miss += en_dict[k]
 
         for k in cn_dict:
-            if len(k) > 0 and cn_dict[k] >= 1:
+            if len(k) > 0 and cn_dict[k] >= 2:
                 cn_token_file.write(k + "\n")
-                a += 1
+                cn_total += 1
+            else:
+                cn_miss += cn_dict[k]
 
-        print(f"total token size:{a}")
+        print(
+            f"en token size:{(en_total, en_miss)}\ncn token size:{(cn_total, cn_miss)}"
+        )
         # lenl = [0 for _ in range(200)]
         # for k in len_dict:
         #     lenl[k] = len_dict[k]
@@ -50,8 +59,8 @@ def dict_gen():
 
 def load_dict() -> tuple[list[str], dict[str, int], list[str], dict[str, int]]:
     with (
-        open("./data/en_token_dict.txt", "r") as en_dict_file,
-        open("./data/cn_token_dict.txt", "r") as cn_dict_file,
+        open(f"./{target_path}/en_token_dict.txt", "r") as en_dict_file,
+        open(f"./{target_path}/cn_token_dict.txt", "r") as cn_dict_file,
     ):
         en_idx2word = ["<bos>", "<eos>", "<pad>", "<unk>"]
         en_word2idx = {v: k for k, v in enumerate(en_idx2word)}
@@ -82,7 +91,7 @@ def token_gen():
     with (
         open("./data/news-commentary-v13.zh-en.en.split", "r") as en_file,
         open("./data/news-commentary-v13.zh-en.zh.split", "r") as cn_file,
-        open("data/tokens.txt", "w") as token_file,
+        open(f"./{target_path}/tokens.txt", "w") as token_file,
     ):
         en_idx2word, en_word2idx, cn_idx2word, cn_word2idx = load_dict()
 
