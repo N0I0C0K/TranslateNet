@@ -108,10 +108,12 @@ class Translator:
 
     def forward_net(self, src: Tensor, tgt: Tensor):
         src, tgt = src.to(self.device), tgt.to(self.device)
-        src_mask = (src == 2).to(self.device)
+        src_mask = torch.ones_like(src).float().masked_fill(src == 2, float("-inf"))
 
         dec_tgt = tgt[:, :-1]
-        dec_tgt_mask = (dec_tgt == 2).to(self.device)
+        dec_tgt_mask = (
+            torch.ones_like(dec_tgt).float().masked_fill(dec_tgt == 2, float("-inf"))
+        )
         tgt_mask = torch.nn.Transformer.generate_square_subsequent_mask(
             dec_tgt.size(1), self.device
         )
@@ -222,9 +224,9 @@ class Translator:
 
 def main():
     trainer = Translator()
-    # trainer.training(128)
-    while (s := input(">")) != "exit":
-        print(trainer.translate(s))
+    trainer.training(128)
+    # while (s := input(">")) != "exit":
+    #     print(trainer.translate(s))
 
 
 if __name__ == "__main__":
